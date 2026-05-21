@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block title %}{{ habit.title }}{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <div>
+        <h1>{{ habit.title }}</h1>
+        <p class="muted">{{ habit.description or "Без описания" }}</p>
+        <span class="badge {{ 'badge-good' if habit.type.value == 'good' else 'badge-bad' }}">
+            {{ "Полезная" if habit.type.value == "good" else "Вредная" }}
+        </span>
+    </div>
+    <div class="header-actions">
+        <a class="button button-ghost" href="/app/habits/{{ habit.id }}/edit">Изменить</a>
+        <a class="button button-ghost" href="/app/habits">К списку</a>
+    </div>
+</section>
+
+<section class="stats-grid">
+    <article class="metric">
+        <span>Дней в периоде</span>
+        <strong>{{ stats.total_days }}</strong>
+    </article>
+    <article class="metric">
+        <span>{{ "Дней без срыва" if habit.type.value == "bad" else "Выполнено" }}</span>
+        <strong>{{ stats.completed_days }}</strong>
+    </article>
+    <article class="metric">
+        <span>Прогресс</span>
+        <strong>{{ stats.completion_rate }}%</strong>
+    </article>
+</section>
+
+<form class="panel controls" method="get" action="/app/habits/{{ habit.id }}">
+    <label>
+        Начало периода
+        <input name="start_date" type="date" value="{{ start_date }}">
+    </label>
+    <label>
+        Конец периода
+        <input name="end_date" type="date" value="{{ end_date }}">
+    </label>
+    <label>
+        Дата отметки
+        <input name="completion_date" type="date" value="{{ selected_date }}">
+    </label>
+    <div class="control-actions">
+        <button class="button button-primary" type="submit">Показать</button>
+        <a class="button button-ghost" href="/app/habits/{{ habit.id }}?period=week">Неделя</a>
+        <a class="button button-ghost" href="/app/habits/{{ habit.id }}?period=month">Месяц</a>
+    </div>
+</form>
+
+<section class="split-layout">
+    <form class="panel form-panel" action="/app/habits/{{ habit.id }}/complete" method="post">
+        <h2>{{ "Срыв за день" if daily_status.is_bad else "Прогресс за день" }}</h2>
+        <label>
+            Дата
+            <input name="completed_date" type="date" value="{{ selected_date }}">
+        </label>
+        <div class="progress-summary">
+            <div class="progress-copy">
+                <span>{{ daily_status.status_text }}</span>
+                <strong>{{ daily_status.progress_text }}</strong>
+            </div>
+            <div class="progress-bar" aria-label="Прогресс">
+                <span style="width: {{ daily_status.progress_percent }}%"></span>
+            </div>
+        </div>
+        <input type="hidden" name="amount" value="1">
+        <input type="hidden" name="return_to" value="{{ request.url.path }}{% if request.url.query %}?{{ request.url.query }}{% endif %}">
+        {% if not daily_status.is_active %}
+            <button class="button button-ghost" type="submit" disabled>Еще не создана</button>
+        {% elif daily_status.is_bad %}
+            {% if daily_status.has_log %}
+                <button class="button button-danger" type="submit" disabled>Срыв отмечен</button>
+            {% else %}
+                <button class="button button-danger" type="submit">{{ daily_status.action_text }}</button>
+            {% endif %}
+        {% else %}
+            <button class="button button-primary" type="submit" {% if daily_status.is_complete %}disabled{% endif %}>
+                {{ "Цель выполнена" if daily_status.is_complete else daily_status.action_text }}
+            </button>
+        {% endif %}
+    </form>
+
+    {% if daily_status.has_log %}
+        <form class="panel form-panel" action="/app/habits/{{ habit.id }}/undo" method="post">
+            <h2>{{ daily_status.undo_text }}</h2>
+            <label>
+                Дата
+                <input name="completed_date" type="date" value="{{ selected_date }}">
+            </label>
+            <input type="hidden" name="return_to" value="{{ request.url.path }}{% if request.url.query %}?{{ request.url.query }}{% endif %}">
+            <button class="button button-ghost" type="submit">{{ daily_status.undo_text }}</button>
+        </form>
+    {% endif %}
+
+    <section class="panel">
+        <div class="section-title">
+            <h2>История</h2>
+            <span class="muted">{{ logs|length }} записей</span>
+        </div>
+        {% if logs %}
+            <ul class="history-list">
+                {% for log in logs %}
+                    <li>
+                        {% if habit.type.value == "bad" %}
+                            {{ log.completed_date }} - срыв
+                        {% else %}
+                            {{ log.completed_date }} - {{ log.progress }}/{{ habit.target_count }}
+                        {% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p class="empty">За этот период отметок нет.</p>
+        {% endif %}
+    </section>
+</section>
+{% endblock %}

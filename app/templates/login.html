@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block title %}Вход{% endblock %}
+
+{% block content %}
+<section class="auth-layout">
+    <form class="panel auth-panel" action="/app/login" method="post">
+        <h1>Вход</h1>
+        <input type="hidden" name="next" value="{{ next_url }}">
+
+        <label>
+            Логин или email
+            <input name="login" value="{{ form.get('login', '') }}" autocomplete="username" required>
+        </label>
+
+        <label>
+            Пароль
+            <input name="password" type="password" autocomplete="current-password" required>
+        </label>
+
+        <button class="button button-primary" type="submit">Войти</button>
+        <p class="muted">Нет аккаунта? <a href="/app/register">Зарегистрироваться</a></p>
+    </form>
+</section>
+{% endblock %}

@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}{{ "Новая привычка" if mode == "create" else "Редактирование" }}{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <div>
+        <h1>{{ "Новая привычка" if mode == "create" else "Редактирование" }}</h1>
+        <p class="muted">{{ "Создание записи" if mode == "create" else habit.title }}</p>
+    </div>
+    <a class="button button-ghost" href="{{ '/app/habits' if mode == 'create' else '/app/habits/' ~ habit.id }}">Назад</a>
+</section>
+
+<form class="panel form-panel" action="{{ '/app/habits' if mode == 'create' else '/app/habits/' ~ habit.id ~ '/edit' }}" method="post">
+    {# Один шаблон обслуживает создание и редактирование. #}
+    <label>
+        Название
+        <input name="title" value="{{ form.get('title', '') }}" minlength="2" maxlength="100" required>
+    </label>
+
+    <label>
+        Описание
+        <textarea name="description" maxlength="500" rows="6">{{ form.get('description', '') }}</textarea>
+    </label>
+
+    <label>
+        Тип
+        <select name="type" required>
+            {% for habit_type in habit_types %}
+                <option value="{{ habit_type.value }}" {% if form.get('type') == habit_type.value %}selected{% endif %}>
+                    {{ "Полезная" if habit_type.value == "good" else "Вредная" }}
+                </option>
+            {% endfor %}
+        </select>
+    </label>
+
+    <label>
+        Цель за день
+        <input name="target_count" type="number" min="1" max="1000" value="{{ form.get('target_count', 1) }}" required>
+    </label>
+
+    <div class="form-actions">
+        <button class="button button-primary" type="submit">
+            {{ "Создать" if mode == "create" else "Сохранить" }}
+        </button>
+    </div>
+</form>
+{% endblock %}

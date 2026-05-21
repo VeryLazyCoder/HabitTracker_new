@@ -6,3 +6,10 @@
 *.iml
 out
 gen
+
+# Python runtime artifacts
+__pycache__/
+*.py[cod]
+
+# Local development database
+habit_tracker.db

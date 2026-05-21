@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+
+{% block title %}Мои привычки{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <div>
+        <h1>Мои привычки</h1>
+        <p class="muted">Период: {{ start_date }} - {{ end_date }}</p>
+    </div>
+    <a class="button button-primary" href="/app/habits/new">Добавить привычку</a>
+</section>
+
+<section class="stats-grid">
+    <article class="metric">
+        <span>Привычек</span>
+        <strong>{{ stats.habits_count }}</strong>
+    </article>
+    <article class="metric">
+        <span>Успешных дней</span>
+        <strong>{{ stats.completed_logs }}</strong>
+    </article>
+    <article class="metric">
+        <span>Прогресс</span>
+        <strong>{{ stats.completion_rate }}%</strong>
+    </article>
+</section>
+
+<form class="panel controls" method="get" action="/app/habits">
+    <label>
+        Поиск
+        <input name="search" value="{{ filters.search }}" placeholder="Название или описание">
+    </label>
+    <label>
+        Тип
+        <select name="type">
+            <option value="">Все</option>
+            {% for habit_type in habit_types %}
+                <option value="{{ habit_type.value }}" {% if filters.type == habit_type.value %}selected{% endif %}>
+                    {{ "Полезная" if habit_type.value == "good" else "Вредная" }}
+                </option>
+            {% endfor %}
+        </select>
+    </label>
+    <label>
+        Дата отметки
+        <input name="completion_date" type="date" value="{{ selected_date }}">
+    </label>
+    <label>
+        Статус
+        <select name="completion_status">
+            <option value="all" {% if filters.completion_status == "all" %}selected{% endif %}>Все</option>
+            <option value="completed" {% if filters.completion_status == "completed" %}selected{% endif %}>Успешные</option>
+            <option value="missed" {% if filters.completion_status == "missed" %}selected{% endif %}>Проблемные</option>
+        </select>
+    </label>
+    <label>
+        Сортировка
+        <select name="sort_by">
+            <option value="created_at" {% if filters.sort_by == "created_at" %}selected{% endif %}>Дата создания</option>
+            <option value="title" {% if filters.sort_by == "title" %}selected{% endif %}>Название</option>
+            <option value="type" {% if filters.sort_by == "type" %}selected{% endif %}>Тип</option>
+        </select>
+    </label>
+    <label>
+        Направление
+        <select name="sort_dir">
+            <option value="desc" {% if filters.sort_dir == "desc" %}selected{% endif %}>По убыванию</option>
+            <option value="asc" {% if filters.sort_dir == "asc" %}selected{% endif %}>По возрастанию</option>
+        </select>
+    </label>
+    <label>
+        Начало периода
+        <input name="start_date" type="date" value="{{ start_date }}">
+    </label>
+    <label>
+        Конец периода
+        <input name="end_date" type="date" value="{{ end_date }}">
+    </label>
+    <div class="control-actions">
+        <button class="button button-primary" type="submit">Применить</button>
+        <a class="button button-ghost" href="/app/habits?period=week">Неделя</a>
+        <a class="button button-ghost" href="/app/habits?period=month">Месяц</a>
+    </div>
+</form>
+
+<section class="list-section">
+    <div class="section-title">
+        <h2>Список</h2>
+        <span class="muted">{{ habits|length }} найдено</span>
+    </div>
+
+    {% if habits %}
+        <div class="habit-list">
+            {% for habit in habits %}
+                {% set status = daily_statuses[habit.id] %}
+                <article class="habit-row">
+                    <div class="habit-main">
+                        <div class="habit-title-line">
+                            <a class="habit-title" href="/app/habits/{{ habit.id }}">{{ habit.title }}</a>
+                            <span class="badge {{ 'badge-good' if habit.type.value == 'good' else 'badge-bad' }}">
+                                {{ "Полезная" if habit.type.value == "good" else "Вредная" }}
+                            </span>
+                        </div>
+                        <p class="muted">{{ habit.description or "Без описания" }}</p>
+                        <div class="progress-summary">
+                            <div class="progress-copy">
+                                <span>{{ status.status_text }} {{ selected_date }}</span>
+                                <strong>{{ status.progress_text }}</strong>
+                            </div>
+                            <div class="progress-bar" aria-label="Прогресс">
+                                <span style="width: {{ status.progress_percent }}%"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="habit-actions">
+                        {% if not status.is_active %}
+                            <span class="status status-pending">Еще не создана</span>
+                        {% elif status.is_bad %}
+                            {% if status.has_log %}
+                                <span class="status status-failed">Срыв {{ selected_date }}</span>
+                                <form action="/app/habits/{{ habit.id }}/undo" method="post">
+                                    <input type="hidden" name="completed_date" value="{{ selected_date }}">
+                                    <input type="hidden" name="return_to" value="{{ request.url.path }}{% if request.url.query %}?{{ request.url.query }}{% endif %}">
+                                    <button class="button button-ghost" type="submit">{{ status.undo_text }}</button>
+                                </form>
+                            {% else %}
+                                <span class="status status-done">Без срыва {{ selected_date }}</span>
+                                <form action="/app/habits/{{ habit.id }}/complete" method="post">
+                                    <input type="hidden" name="completed_date" value="{{ selected_date }}">
+                                    <input type="hidden" name="return_to" value="{{ request.url.path }}{% if request.url.query %}?{{ request.url.query }}{% endif %}">
+                                    <button class="button button-danger" type="submit">{{ status.action_text }}</button>
+                                </form>
+                            {% endif %}
+                        {% else %}
+                            {% if status.is_complete %}
+                                <span class="status status-done">Выполнено {{ selected_date }}</span>
+                            {% else %}
+                                <form action="/app/habits/{{ habit.id }}/complete" method="post">
+                                    <input type="hidden" name="completed_date" value="{{ selected_date }}">
+                                    <input type="hidden" name="amount" value="1">
+                                    <input type="hidden" name="return_to" value="{{ request.url.path }}{% if request.url.query %}?{{ request.url.query }}{% endif %}">
+                                    <button class="button button-primary" type="submit">{{ status.action_text }}</button>
+                                </form>
+                            {% endif %}
+                            {% if status.has_log %}
+                                <form action="/app/habits/{{ habit.id }}/undo" method="post">
+                                    <input type="hidden" name="completed_date" value="{{ selected_date }}">
+                                    <input type="hidden" name="return_to" value="{{ request.url.path }}{% if request.url.query %}?{{ request.url.query }}{% endif %}">
+                                    <button class="button button-ghost" type="submit">{{ status.undo_text }}</button>
+                                </form>
+                            {% endif %}
+                        {% endif %}
+                        <a class="button button-ghost" href="/app/habits/{{ habit.id }}/edit">Изменить</a>
+                        <form action="/app/habits/{{ habit.id }}/delete" method="post" onsubmit='return confirm({{ ("Удалить привычку «" ~ habit.title ~ "»?")|tojson }});'>
+                            <button class="button button-danger" type="submit">Удалить</button>
+                        </form>
+                    </div>
+                </article>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="empty">Привычки не найдены.</p>
+    {% endif %}
+</section>
+{% endblock %}
